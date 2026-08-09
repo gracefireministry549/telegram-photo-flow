@@ -42,3 +42,14 @@ async def send_message(chat_id: int | str, text: str) -> dict:
         )
         response.raise_for_status()
         return response.json()
+
+
+async def register_webhook(webhook_url: str) -> dict:
+    """Register the public HTTPS webhook with Telegram."""
+    async with httpx.AsyncClient(timeout=20) as client:
+        response = await client.post(
+            telegram_api_url("setWebhook"),
+            json={"url": webhook_url},
+        )
+        response.raise_for_status()
+        return response.json()
