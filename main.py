@@ -1,4 +1,4 @@
-"""HTTP API for the business-agent approval workflow and Telegram webhook."""
+"""Business Agents API and Telegram webhook."""
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
@@ -7,6 +7,15 @@ from app.approval import validate_action
 from app.telegram import extract_message, extract_photo, send_message
 
 app = FastAPI(title="Business Agents")
+
+DASHBOARD = """<!doctype html>
+<html><head><meta name='viewport' content='width=device-width,initial-scale=1'>
+<title>Business Agents</title>
+<style>body{font-family:Arial;margin:0;background:#f5f7fb;color:#172033}main{max-width:900px;margin:auto;padding:24px}.hero{background:#172033;color:white;padding:24px;border-radius:18px}h1{margin:0 0 8px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:16px}.card{background:white;padding:18px;border-radius:14px;box-shadow:0 2px 10px #0001}.ok{font-weight:bold}.flow{line-height:2.1}.note{color:#596579}</style></head>
+<body><main><section class='hero'><h1>🤖 Business Agents</h1><div>Your AI-assisted business lead and problem-solving control center</div></section>
+<div class='grid'><div class='card'><h3>🔎 Scout</h3><p>Finds relevant public business opportunities.</p></div><div class='card'><h3>🕵️ Detective</h3><p>Checks evidence and identifies the business problem.</p></div><div class='card'><h3>🛠️ Solver</h3><p>Designs a practical solution and job plan.</p></div><div class='card'><h3>📣 Marketer</h3><p>Prepares personalized outreach for your approval.</p></div></div>
+<div class='card' style='margin-top:16px'><h2>Approval workflow</h2><div class='flow'>Lead found → Problem verified → Solution proposed → <b>YOU APPROVE</b> → Client contact → Job → Completion proof → Report</div><p class='note'>The system will not contact a lead just because it found one. External outreach requires your approval.</p></div>
+<div class='card' style='margin-top:16px'><h2>System status</h2><p class='ok'>🟢 API online</p><p>Telegram: awaiting secure bot token + webhook setup</p><p>Lead pipeline: ready</p><p>Approval gate: ready</p></div></main></body></html>"""
 
 
 class LeadRequest(BaseModel):
@@ -24,8 +33,7 @@ class ActionRequest(BaseModel):
 
 @app.get("/", response_class=HTMLResponse)
 def dashboard():
-    with open("app/dashboard.html", "r", encoding="utf-8") as f:
-        return f.read()
+    return DASHBOARD
 
 
 @app.get("/health")
