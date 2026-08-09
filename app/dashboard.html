@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Business Agents</title>
+  <style>
+    body{font-family:system-ui,sans-serif;max-width:900px;margin:auto;padding:24px;line-height:1.5}
+    .card{border:1px solid #ddd;border-radius:14px;padding:18px;margin:14px 0}
+    button{padding:10px 16px;margin:4px;border:0;border-radius:8px;cursor:pointer}
+    .ok{background:#e9f7ef}.warn{background:#fff5d6}.danger{background:#fdecec}
+    code{background:#f2f2f2;padding:2px 5px;border-radius:5px}
+  </style>
+</head>
+<body>
+  <h1>🤖 Business Agents</h1>
+  <p>Your approval-first business automation control center.</p>
+  <div class="card ok"><h2>System</h2><p id="status">Checking API…</p></div>
+  <div class="card"><h2>Agent pipeline</h2><p>🔎 Scout → 🔍 Detective → ⭐ Qualifier → 🛠️ Solver → 📣 Marketer → 💬 Messenger → 📋 Job Manager → ✅ Proof → 📧 Reporter</p></div>
+  <div class="card warn"><h2>Approval rule</h2><p>Agents may research and prepare work. External outreach or other consequential actions require your approval.</p><button onclick="alert('Approval queue will appear here as leads are connected.')">View approval queue</button></div>
+  <div class="card"><h2>Telegram</h2><p>Webhook endpoint: <code>/telegram/webhook</code></p><p>Bot token is kept as a server secret, never in GitHub.</p></div>
+  <script>
+    fetch('/').then(r=>r.json()).then(d=>document.getElementById('status').textContent='🟢 '+d.status+' — '+d.service).catch(()=>document.getElementById('status').textContent='🔴 API unavailable');
+  </script>
+</body>
+</html>
