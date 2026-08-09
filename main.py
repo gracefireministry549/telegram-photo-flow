@@ -8,6 +8,10 @@ from pydantic import BaseModel, Field
 from app.pipeline import build_approval_queue
 from app.approval import validate_action
 from app.telegram import extract_message, extract_photo, send_message, register_webhook
+from app.commands import HELP, parse_lead_command
+from app.detective import investigate
+from app.scout import scout
+from app.solution import propose_solution
 
 
 @asynccontextmanager
@@ -20,14 +24,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Business Agents", lifespan=lifespan)
 
-DASHBOARD = """<!doctype html>
-<html><head><meta name='viewport' content='width=device-width,initial-scale=1'>
-<title>Business Agents</title>
-<style>body{font-family:Arial;margin:0;background:#f5f7fb;color:#172033}main{max-width:900px;margin:auto;padding:24px}.hero{background:#172033;color:white;padding:24px;border-radius:18px}h1{margin:0 0 8px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:16px}.card{background:white;padding:18px;border-radius:14px;box-shadow:0 2px 10px #0001}.ok{font-weight:bold}.flow{line-height:2.1}.note{color:#596579}</style></head>
-<body><main><section class='hero'><h1>🤖 Business Agents</h1><div>Your AI-assisted business lead and problem-solving control center</div></section>
-<div class='grid'><div class='card'><h3>🔎 Scout</h3><p>Finds relevant public business opportunities.</p></div><div class='card'><h3>🕵️ Detective</h3><p>Checks evidence and identifies the business problem.</p></div><div class='card'><h3>🛠️ Solver</h3><p>Designs a practical solution and job plan.</p></div><div class='card'><h3>📣 Marketer</h3><p>Prepares personalized outreach for your approval.</p></div></div>
-<div class='card' style='margin-top:16px'><h2>Approval workflow</h2><div class='flow'>Lead found → Problem verified → Solution proposed → <b>YOU APPROVE</b> → Client contact → Job → Completion proof → Report</div><p class='note'>The system will not contact a lead just because it found one. External outreach requires your approval.</p></div>
-<div class='card' style='margin-top:16px'><h2>System status</h2><p class='ok'>🟢 API online</p><p>Telegram: webhook configured automatically when deployed with the secure token.</p><p>Lead pipeline: ready</p><p>Approval gate: ready</p></div></main></body></html>"""
+DASHBOARD = """<!doctype html><html><head><meta name='viewport' content='width=device-width,initial-scale=1'><title>Business Agents</title></head><body><main><h1>🤖 Business Agents</h1><p>AI-assisted business lead and problem-solving control center.</p><h2>Workflow</h2><p>Lead → Problem evidence → Solution → <b>YOU APPROVE</b> → Client → Job → Completion → Report</p><p>🟢 API online</p><p>Telegram: webhook configured automatically.</p></main></body></html>"""
 
 
 class LeadRequest(BaseModel):
@@ -73,9 +70,24 @@ async def telegram_webhook(request: Request):
     chat_id = message.get("chat", {}).get("id")
     photo = extract_photo(update)
     if photo and chat_id is not None:
-        await send_message(chat_id, "📷 Photo received successfully. Send the business details or lead information you want the agents to work on.")
+        await send_message(chat_id, "📷 Photo received. Send /help or /lead Business | website | location | problem.")
         return {"ok": True, "handled": True, "type": "photo", "file_id": photo.get("file_id")}
-    text = message.get("text", "")
-    if chat_id is not None and text:
-        await send_message(chat_id, "🤖 Business Agents is online. Send a lead or a photo to begin.")
+
+    text = (message.get("text") or "").strip()
+    if chat_id is None:
+        return {"ok": True, "handled": True}
+    if text in ("/start", "/help"):
+        await send_message(chat_id, "🤖 Business Agents ready.\n\n" + HELP)
+        return {"ok": True, "handled": True, "type": "command"}
+
+    lead_record = parse_lead_command(text)
+    if lead_record:
+        lead = scout([lead_record])[0]
+        investigation = investigate(lead)
+        proposal = propose_solution(lead)
+        reply = (f"🔎 NEW OPPORTUNITY\n\nBusiness: {lead['name']}\nScore: {lead.get('score', 0)}/10\nProblem: {investigation.get('problem') or 'No verified problem supplied'}\nConfidence: {investigation.get('confidence')}\nProposed solution: {proposal.get('solution') or 'Need more evidence'}\n\n⚠️ Nothing will be sent to the business without your approval.")
+        await send_message(chat_id, reply)
+        return {"ok": True, "handled": True, "type": "lead", "lead": lead}
+
+    await send_message(chat_id, "🤖 I received your message. Use /help to see available commands.")
     return {"ok": True, "handled": True, "type": "message"}
