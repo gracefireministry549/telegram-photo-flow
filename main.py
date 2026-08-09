@@ -1,12 +1,24 @@
 """Business Agents API and Telegram webhook."""
+import os
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 from app.pipeline import build_approval_queue
 from app.approval import validate_action
-from app.telegram import extract_message, extract_photo, send_message
+from app.telegram import extract_message, extract_photo, send_message, register_webhook
 
-app = FastAPI(title="Business Agents")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    webhook_url = os.getenv("TELEGRAM_WEBHOOK_URL")
+    if webhook_url and os.getenv("TELEGRAM_BOT_TOKEN"):
+        await register_webhook(webhook_url)
+    yield
+
+
+app = FastAPI(title="Business Agents", lifespan=lifespan)
 
 DASHBOARD = """<!doctype html>
 <html><head><meta name='viewport' content='width=device-width,initial-scale=1'>
@@ -15,7 +27,7 @@ DASHBOARD = """<!doctype html>
 <body><main><section class='hero'><h1>🤖 Business Agents</h1><div>Your AI-assisted business lead and problem-solving control center</div></section>
 <div class='grid'><div class='card'><h3>🔎 Scout</h3><p>Finds relevant public business opportunities.</p></div><div class='card'><h3>🕵️ Detective</h3><p>Checks evidence and identifies the business problem.</p></div><div class='card'><h3>🛠️ Solver</h3><p>Designs a practical solution and job plan.</p></div><div class='card'><h3>📣 Marketer</h3><p>Prepares personalized outreach for your approval.</p></div></div>
 <div class='card' style='margin-top:16px'><h2>Approval workflow</h2><div class='flow'>Lead found → Problem verified → Solution proposed → <b>YOU APPROVE</b> → Client contact → Job → Completion proof → Report</div><p class='note'>The system will not contact a lead just because it found one. External outreach requires your approval.</p></div>
-<div class='card' style='margin-top:16px'><h2>System status</h2><p class='ok'>🟢 API online</p><p>Telegram: awaiting secure bot token + webhook setup</p><p>Lead pipeline: ready</p><p>Approval gate: ready</p></div></main></body></html>"""
+<div class='card' style='margin-top:16px'><h2>System status</h2><p class='ok'>🟢 API online</p><p>Telegram: webhook configured automatically when deployed with the secure token.</p><p>Lead pipeline: ready</p><p>Approval gate: ready</p></div></main></body></html>"""
 
 
 class LeadRequest(BaseModel):
