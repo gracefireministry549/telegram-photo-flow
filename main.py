@@ -93,18 +93,26 @@ async def telegram_webhook(request: Request):
         return {"ok": True, "handled": True, "type": "natural_language"}
 
     lead_record = parse_lead_command(text)
+    # Plain English lead requests are converted into the same approval pipeline.
+    if not lead_record and intent["intent"] == "find_leads":
+        lead_record = {
+            "name": "Lead search",
+            "website": None,
+            "location": intent.get("location"),
+            "reason": intent.get("topic") or text,
+            "service": intent.get("topic"),
+            "task_type": "lead_search",
+            "source": "telegram-natural-language",
+        }
+
     if lead_record:
         lead = scout([lead_record])[0]
         investigation = investigate(lead)
         proposal = propose_solution(lead)
         key = save_pending(chat_id, lead, proposal)
-        reply = f"🔎 NEW OPPORTUNITY\n\nBusiness: {lead['name']}\nScore: {lead.get('score', 0)}/10\nProblem: {investigation.get('problem') or 'No verified problem supplied'}\nConfidence: {investigation.get('confidence')}\nProposed solution: {proposal.get('solution') or 'Need more evidence'}\n\n⚠️ Nothing will be sent to the business without your approval."
+        reply = f"🔎 NEW OPPORTUNITY\n\nBusiness: {lead['name']}\nScore: {lead.get('score', 0)}/10\nLocation: {lead.get('location') or 'Not specified'}\nRequest: {lead.get('reason') or 'Not specified'}\nProblem: {investigation.get('problem') or 'Needs verification'}\nConfidence: {investigation.get('confidence')}\nProposed solution: {proposal.get('solution') or 'Need more evidence'}\n\n⚠️ Nothing will be sent to a business without your approval."
         await send_message(chat_id, reply, approval_keyboard(key))
         return {"ok": True, "handled": True, "type": "lead", "lead": lead}
-
-    if intent["intent"] == "find_leads":
-        await send_message(chat_id, f"🔎 I understand. You want me to find leads about: {intent['topic']}\n\nFor this first version, I need the public lead source/data connected before I can claim I found real businesses. I won't invent leads.")
-        return {"ok": True, "handled": True, "type": "find_leads"}
 
     await send_message(chat_id, "🤖 I understand normal English. Tell me what you want done, who it is for, and any useful details. I will ask for approval before external outreach.")
     return {"ok": True, "handled": True, "type": "natural_language"}
